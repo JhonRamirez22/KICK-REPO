@@ -12,14 +12,14 @@ on:
         required: true
         default: '50'
       duration:
-        description: 'Minutos a correr (max 360 = 6h)'
+        description: 'Minutos (max 360)'
         required: true
         default: '60'
 
 env:
-  STREAM_URL: ${{ github.event.inputs.stream || 'https://kick.com/canal' }}
-  VIEWERS: ${{ github.event.inputs.viewers || '50' }}
-  DURATION: ${{ github.event.inputs.duration || '60' }}
+  STREAM_URL: ${{ github.event.inputs.stream }}
+  VIEWERS: ${{ github.event.inputs.viewers }}
+  DURATION: ${{ github.event.inputs.duration }}
 
 jobs:
   run-bot:
@@ -33,39 +33,11 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: '3.11' }
 
-      - name: Instalar Tor + dependencias
+      - name: Instalar dependencias
         run: |
-          sudo apt update -qq && sudo apt install -y -qq tor
-          pip install -q fastapi uvicorn curl-cffi
-          npm install ws --silent
-
-      - name: Esperar Tor
-        run: |
-          sudo systemctl start tor
-          echo "Esperando Tor..."
-          for i in $(seq 1 30); do
-            if curl -s --socks5 127.0.0.1:9050 --max-time 5 https://check.torproject.org 2>/dev/null | grep -q "Congratulations"; then
-              echo "Tor listo despues de ${i}s"
-              break
-            fi
-            sleep 1
-          done
-          echo "IP Tor: $(curl -s --socks5 127.0.0.1:9050 --max-time 10 https://ifconfig.me 2>/dev/null || echo 'timeout')"
-
-      - name: Iniciar Token Server
-        run: |
-          kill $(lsof -t -i:8765) 2>/dev/null || true
-          nohup python token_server_vps.py > /tmp/token-server.log 2>&1 &
-          echo "Esperando que inicie..."
-          for i in $(seq 1 15); do
-            if curl -s http://127.0.0.1:8765/health 2>/dev/null; then
-              echo "Token Server listo"
-              break
-            fi
-            sleep 1
-          done
-          cat /tmp/token-server.log
+          pip install curl-cffi
+          npm install ws
 
       - name: Ejecutar bot
         run: |
-          timeout $((DURATION * 60)) node kick-websocket-v14-tor.js "$STREAM_URL" "$VIEWERS" || true
+          timeout $((DURATION * 60)) node kick-websocket-BACKUP.js "$STREAM_URL" "$VIEWERS" || true
