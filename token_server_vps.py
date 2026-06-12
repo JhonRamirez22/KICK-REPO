@@ -97,6 +97,10 @@ async def health():
     return {"status": "ok", "mode": "tor"}
 
 if __name__ == "__main__":
-    logger.info("Esperando que Tor esté listo...")
-    time.sleep(10)
-    uvicorn.run(app, host="127.0.0.1", port=8765, log_level="warning", workers=1)
+    logger.info("Iniciando Token Server...")
+    try:
+        uvicorn.run(app, host="127.0.0.1", port=8765, log_level="info")
+    except Exception as e:
+        logger.error(f"Error iniciando server: {e}")
+        time.sleep(3)
+        uvicorn.run(app, host="127.0.0.1", port=8765, log_level="info")

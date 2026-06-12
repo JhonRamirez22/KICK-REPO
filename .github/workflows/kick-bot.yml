@@ -54,9 +54,17 @@ jobs:
 
       - name: Iniciar Token Server
         run: |
-          python token_server_vps.py &
-          sleep 8
-          curl -s http://127.0.0.1:8765/health && echo ""
+          kill $(lsof -t -i:8765) 2>/dev/null || true
+          nohup python token_server_vps.py > /tmp/token-server.log 2>&1 &
+          echo "Esperando que inicie..."
+          for i in $(seq 1 15); do
+            if curl -s http://127.0.0.1:8765/health 2>/dev/null; then
+              echo "Token Server listo"
+              break
+            fi
+            sleep 1
+          done
+          cat /tmp/token-server.log
 
       - name: Ejecutar bot
         run: |
