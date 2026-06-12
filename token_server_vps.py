@@ -68,8 +68,8 @@ async def get_channel_info(channel_name):
 
 @app.get("/batch-tokens")
 async def batch_tokens(channel: str, count: int = 10):
-    if count > 30: count = 30
-    sem = asyncio.Semaphore(3)
+    if count > 100: count = 100
+    sem = asyncio.Semaphore(5)
     async def limited():
         async with sem:
             return await fetch_token(channel)

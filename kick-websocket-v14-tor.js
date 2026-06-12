@@ -102,16 +102,25 @@ class KickViewerBot {
 
     async getViewerTokens(count) {
         console.log(`\n  Obteniendo ${count} tokens via API Server (Tor proxy)...`);
-        try {
-            const data = await apiGet(`/batch-tokens?channel=${this.streamName}&count=${count}`);
-            const tokens = (data.tokens || []).filter(isValidToken);
-            this.state.tokens = tokens.length;
-            console.log(`  ✅ Tokens obtenidos: ${tokens.length}/${count}`);
-            return tokens;
-        } catch (e) {
-            console.error(`  ❌ Error API: ${e.message.split('\n')[0]}`);
-            return [];
+        let allTokens = [];
+        const batchSize = 100;
+        const batches = Math.ceil(count / batchSize);
+        for (let i = 0; i < batches; i++) {
+            const size = Math.min(batchSize, count - allTokens.length);
+            try {
+                const data = await apiGet(`/batch-tokens?channel=${this.streamName}&count=${size}`);
+                const tokens = (data.tokens || []).filter(isValidToken);
+                allTokens.push(...tokens);
+                console.log(`  >> Progreso: ${allTokens.length}/${count}`);
+            } catch (e) {
+                console.warn(`  ⚠️  Batch ${i + 1} falló: ${e.message.slice(0, 50)}`);
+            }
+            if (allTokens.length >= count) break;
+            await new Promise(r => setTimeout(r, 2000));
         }
+        this.state.tokens = allTokens.length;
+        console.log(`  ✅ Total: ${allTokens.length}/${count} tokens`);
+        return allTokens;
     }
 
     async getSingleToken() {
