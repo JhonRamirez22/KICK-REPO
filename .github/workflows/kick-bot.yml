@@ -38,6 +38,36 @@ jobs:
           pip install curl-cffi
           npm install ws
 
+      - name: Probar sin proxy
+        run: |
+          echo "IP real: $(curl -s --max-time 5 https://ifconfig.me 2>/dev/null || echo 'timeout')"
+          echo "Test Kick:"
+          curl -s --max-time 10 -o /dev/null -w "HTTP %{http_code}" https://kick.com/api/v1/channels/lasapaaaaa -H "User-Agent: Mozilla/5.0 Chrome/131" || echo "error"
+
+      - name: Probar con proxy gratuito
+        run: |
+          pip install requests
+          python3 -c "
+import requests, json, uuid
+# Probar varios proxies publicos
+proxies_list = [
+    'http://185.199.228.220:7302', 'http://45.196.148.124:1080',
+    'http://103.160.198.35:1111', 'http://51.222.253.19:3128',
+]
+for prx in proxies_list:
+    try:
+        r = requests.get('https://kick.com/api/v1/channels/lasapaaaaa',
+            proxies={'http': prx, 'https': prx},
+            headers={'User-Agent': 'Mozilla/5.0 Chrome/131', 'Accept': 'application/json'},
+            timeout=15)
+        print(f'Proxy {prx}: HTTP {r.status_code}')
+        if r.status_code == 200:
+            print('FUNCIONA!')
+            break
+    except Exception as e:
+        print(f'Proxy {prx}: {str(e)[:30]}')
+"
+
       - name: Ejecutar bot
         run: |
           timeout $((DURATION * 60)) node kick-websocket-BACKUP.js "$STREAM_URL" "$VIEWERS" || true
