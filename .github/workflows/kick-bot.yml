@@ -33,41 +33,24 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: '3.11' }
 
-      - name: Instalar dependencias
+      - name: Instalar Tor + dependencias
         run: |
+          sudo apt update -qq && sudo apt install -y -qq tor
           pip install curl-cffi
           npm install ws
 
-      - name: Probar sin proxy
+      - name: Iniciar Tor
         run: |
-          echo "IP real: $(curl -s --max-time 5 https://ifconfig.me 2>/dev/null || echo 'timeout')"
-          echo "Test Kick:"
-          curl -s --max-time 10 -o /dev/null -w "HTTP %{http_code}" https://kick.com/api/v1/channels/lasapaaaaa -H "User-Agent: Mozilla/5.0 Chrome/131" || echo "error"
+          sudo systemctl start tor
+          echo "Esperando Tor..."
+          for i in $(seq 1 30); do
+            if curl -s --socks5 127.0.0.1:9050 --max-time 5 https://check.torproject.org 2>/dev/null | grep -q "Congratulations"; then
+              echo "Tor listo (${i}s)"
+              break
+            fi
+            sleep 1
+          done
 
-      - name: Probar con proxy gratuito
-        run: |
-          pip install requests
-          python3 -c "
-import requests, json, uuid
-# Probar varios proxies publicos
-proxies_list = [
-    'http://185.199.228.220:7302', 'http://45.196.148.124:1080',
-    'http://103.160.198.35:1111', 'http://51.222.253.19:3128',
-]
-for prx in proxies_list:
-    try:
-        r = requests.get('https://kick.com/api/v1/channels/lasapaaaaa',
-            proxies={'http': prx, 'https': prx},
-            headers={'User-Agent': 'Mozilla/5.0 Chrome/131', 'Accept': 'application/json'},
-            timeout=15)
-        print(f'Proxy {prx}: HTTP {r.status_code}')
-        if r.status_code == 200:
-            print('FUNCIONA!')
-            break
-    except Exception as e:
-        print(f'Proxy {prx}: {str(e)[:30]}')
-"
-
-      - name: Ejecutar bot
+      - name: Ejecutar bot (via Tor)
         run: |
           timeout $((DURATION * 60)) node kick-websocket-BACKUP.js "$STREAM_URL" "$VIEWERS" || true

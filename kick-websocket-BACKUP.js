@@ -101,11 +101,12 @@ class KickViewerBot {
         const script = writePy('_channel_info.py', `
 import json
 from curl_cffi import requests as r
+PROXY = {"http": "socks5://127.0.0.1:9050", "https": "socks5://127.0.0.1:9050"}
 try:
     res = r.get("https://kick.com/api/v1/channels/${this.streamName}",
         headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0",
                  "Accept": "application/json"},
-        timeout=15, impersonate="chrome131")
+        timeout=30, impersonate="chrome131", proxies=PROXY)
     if res.status_code == 200:
         d = res.json()
         ls = d.get("livestream") or {}
@@ -150,6 +151,7 @@ except Exception as e:
 import json, uuid, time, sys, threading
 from curl_cffi import requests as cffi_requests
 
+PROXY         = {"http": "socks5://127.0.0.1:9050", "https": "socks5://127.0.0.1:9050"}
 CLIENT_TOKEN  = "${CLIENT_TOKEN}"
 CHANNEL       = "${this.streamName}"
 COUNT         = ${count}
@@ -173,13 +175,8 @@ progress = {"ok": 0, "fail": 0}
 def get_batch(batch_id, num):
     with semaphore:
         ua = random.choice(UAS)
-        session = None
-        retries = 0
-        max_retries = 3
-        
-        while retries < max_retries and session is None:
-            try:
-                session = cffi_requests.Session(impersonate="chrome131")
+        try:
+            session = cffi_requests.Session(impersonate="chrome131", proxies=PROXY)
                 session.get(f"https://kick.com/{CHANNEL}",
                     headers={"User-Agent": ua, "Accept": "text/html,*/*",
                              "sec-fetch-dest": "document", "sec-fetch-mode": "navigate"},
@@ -217,7 +214,7 @@ def get_batch(batch_id, num):
                             "X-CLIENT-TOKEN": CLIENT_TOKEN,
                             "X-Device-ID": str(uuid.uuid4()),
                             "X-Session-ID": str(uuid.uuid4()),
-                        }, timeout=20)
+                        }, timeout=45)
                     if r.status_code == 200:
                         token = r.json().get("data", {}).get("token", "")
                         if token:
@@ -306,14 +303,15 @@ print(json.dumps(all_tokens))
         const script = writePy('_single_token.py', `
 import json, uuid
 from curl_cffi import requests as r
+PROXY = {"http": "socks5://127.0.0.1:9050", "https": "socks5://127.0.0.1:9050"}
 try:
-    s = r.Session(impersonate="chrome131")
-    s.get("https://kick.com/${this.streamName}",headers={"User-Agent":"Mozilla/5.0","Accept":"text/html,*/*"},timeout=15)
+    s = r.Session(impersonate="chrome131", proxies=PROXY)
+    s.get("https://kick.com/${this.streamName}",headers={"User-Agent":"Mozilla/5.0","Accept":"text/html,*/*"},timeout=30)
     res = s.get("https://websockets.kick.com/viewer/v1/token",
       headers={"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0",
         "Accept":"application/json","Origin":"https://kick.com","Referer":"https://kick.com/${this.streamName}",
         "sec-fetch-site":"same-site","sec-fetch-mode":"cors","X-CLIENT-TOKEN":"${CLIENT_TOKEN}",
-        "X-Device-ID":str(uuid.uuid4()),"X-Session-ID":str(uuid.uuid4())},timeout=20)
+        "X-Device-ID":str(uuid.uuid4()),"X-Session-ID":str(uuid.uuid4())},timeout=45)
     print(res.json().get("data",{}).get("token","") if res.status_code==200 else "")
 except:
     print("")
